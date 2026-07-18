@@ -1,0 +1,13 @@
+{
+  "name": "solar-todo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A solar-system todo tracker: tasks are planets, local Ollama ranks importance, orbit distance = importance, planet size = wait time.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

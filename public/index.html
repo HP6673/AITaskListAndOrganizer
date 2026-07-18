@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbital Tasks</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="starfield"></div>
+
+  <header id="topbar">
+    <div id="brand">
+      <span id="brand-icon">&#9737;</span>
+      <span id="brand-name">Orbital Tasks</span>
+    </div>
+
+    <div id="ollama-panel">
+      <span id="ollama-dot" class="dot dot-unknown"></span>
+      <span id="ollama-text">checking Ollama&hellip;</span>
+      <select id="model-select" title="Ollama model used to rank tasks"></select>
+      <button id="rank-btn" class="btn btn-primary" disabled>Rank with AI</button>
+    </div>
+  </header>
+
+  <p id="legend">Closer to the sun = more important &middot; bigger planet = longer it's been waiting</p>
+
+  <main id="system-area">
+    <div id="orbit-root">
+      <div id="sun">
+        <span id="sun-count">0</span>
+        <span id="sun-label">tasks</span>
+      </div>
+    </div>
+  </main>
+
+  <button id="add-btn" class="btn btn-primary" title="Add a new task">+ New Task</button>
+
+  <aside id="log-panel">
+    <h3>Mission Log</h3>
+    <ul id="log-list"><li class="log-empty">Completed tasks will appear here.</li></ul>
+  </aside>
+
+  <!-- Add task modal -->
+  <div id="add-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Launch a new task</h2>
+      <label>Title
+        <input id="add-title" type="text" maxlength="200" placeholder="What needs doing?" autocomplete="off" />
+      </label>
+      <label>Notes <span class="muted">(optional — deadlines/urgency help the AI rank it)</span>
+        <textarea id="add-notes" maxlength="2000" rows="3" placeholder="Any details, due date, or why it matters..."></textarea>
+      </label>
+      <p class="modal-hint">New tasks start in the outer asteroid belt until you click <strong>Rank with AI</strong>.</p>
+      <div class="modal-actions">
+        <button id="add-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="add-submit" class="btn btn-primary">Add Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task detail modal -->
+  <div id="detail-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="detail-title-header">Task</h2>
+      <label>Title
+        <input id="detail-title" type="text" maxlength="200" />
+      </label>
+      <label>Notes
+        <textarea id="detail-notes" maxlength="2000" rows="3"></textarea>
+      </label>
+      <p id="detail-meta" class="modal-hint"></p>
+      <div class="modal-actions modal-actions-split">
+        <button id="detail-delete" class="btn btn-danger">Delete</button>
+        <div>
+          <button id="detail-close" class="btn btn-ghost">Close</button>
+          <button id="detail-save" class="btn btn-ghost">Save</button>
+          <button id="detail-complete" class="btn btn-primary">Mark Complete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
