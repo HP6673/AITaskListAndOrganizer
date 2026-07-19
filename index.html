@@ -3,18 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Orbital Tasks</title>
+<title>Task Tracker</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="starfield"></div>
 
   <header id="topbar">
-    <div id="brand">
-      <span id="brand-icon">&#9737;</span>
-      <span id="brand-name">Orbital Tasks</span>
-    </div>
-
     <div id="ollama-panel">
       <span id="ollama-dot" class="dot dot-unknown"></span>
       <span id="ollama-text">checking Ollama&hellip;</span>
@@ -37,8 +32,11 @@
   <button id="add-btn" class="btn btn-primary" title="Add a new task">+ New Task</button>
 
   <aside id="log-panel">
-    <h3>Mission Log</h3>
-    <ul id="log-list"><li class="log-empty">Completed tasks will appear here.</li></ul>
+    <button id="log-toggle" type="button">
+      <span>Task List</span>
+      <span id="log-caret">&#9656;</span>
+    </button>
+    <ul id="log-list" class="collapsed"><li class="log-empty">No tasks yet.</li></ul>
   </aside>
 
   <!-- Add task modal -->
@@ -51,7 +49,7 @@
       <label>Notes <span class="muted">(optional — deadlines/urgency help the AI rank it)</span>
         <textarea id="add-notes" maxlength="2000" rows="3" placeholder="Any details, due date, or why it matters..."></textarea>
       </label>
-      <p class="modal-hint">New tasks start in the outer asteroid belt until you click <strong>Rank with AI</strong>. Tasks are saved in this browser only.</p>
+      <p class="modal-hint">New tasks are ranked by AI automatically. Tasks are saved in this browser only.</p>
       <div class="modal-actions">
         <button id="add-cancel" class="btn btn-ghost">Cancel</button>
         <button id="add-submit" class="btn btn-primary">Add Task</button>
@@ -69,6 +67,11 @@
       <label>Notes
         <textarea id="detail-notes" maxlength="2000" rows="3"></textarea>
       </label>
+      <div class="priority-controls">
+        <span>Priority</span>
+        <button id="detail-move-up" class="btn btn-ghost" title="More important">&#8593;</button>
+        <button id="detail-move-down" class="btn btn-ghost" title="Less important">&#8595;</button>
+      </div>
       <p id="detail-meta" class="modal-hint"></p>
       <div class="modal-actions modal-actions-split">
         <button id="detail-delete" class="btn btn-danger">Delete</button>

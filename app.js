@@ -26,6 +26,8 @@
   const $ = (id) => document.getElementById(id);
   const orbitRoot = $('orbit-root');
   const sunCount = $('sun-count');
+  const logPanel = $('log-panel');
+  const logToggle = $('log-toggle');
   const logList = $('log-list');
   const ollamaDot = $('ollama-dot');
   const ollamaText = $('ollama-text');
@@ -37,6 +39,9 @@
   const addNotes = $('add-notes');
   const detailModal = $('detail-modal');
   const toast = $('toast');
+  const moveUpBtn = $('detail-move-up');
+  const moveDownBtn = $('detail-move-down');
+  const completeBtn = $('detail-complete');
 
   // ---------- local storage ----------
   function loadTasks() {
@@ -75,11 +80,21 @@
   }
 
   function fmtAge(days) {
-    if (days < 1) {
-      const h = Math.max(1, Math.round(days * 24));
-      return `${h}h old`;
-    }
+    const hours = days * 24;
+    if (hours < 1) return '<1hr old';
+    if (days < 1) return `${Math.round(hours)}h old`;
     return `${Math.floor(days)}d old`;
+  }
+
+  function getOrderedActive() {
+    const active = tasks.filter((t) => !t.completed);
+    const ranked = active
+      .filter((t) => t.importanceRank !== null && t.importanceRank !== undefined)
+      .sort((a, b) => a.importanceRank - b.importanceRank);
+    const unranked = active
+      .filter((t) => t.importanceRank === null || t.importanceRank === undefined)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    return [...ranked, ...unranked];
   }
 
   // ---------- starfield ----------
@@ -205,10 +220,7 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
   async function runRank() {
     if (!ollamaOk || !modelSelect.value) return;
     const active = tasks.filter((t) => !t.completed);
-    if (active.length === 0) {
-      showToast('No active tasks to rank.');
-      return;
-    }
+    if (active.length === 0) return;
     rankBtn.disabled = true;
     rankBtn.textContent = 'Scanning system…';
     try {
@@ -219,6 +231,10 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
       });
       persistTasks();
       render();
+      if (selectedTaskId) {
+        const task = tasks.find((t) => t.id === selectedTaskId);
+        if (task) updateDetailMeta(task);
+      }
       showToast('Orbits recalculated by AI priority.');
     } catch (err) {
       const sorted = [...active].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
@@ -263,21 +279,22 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     tasks = tasks.filter((t) => t.id !== id);
     persistTasks();
   }
+  function moveTask(id, direction) {
+    const order = getOrderedActive();
+    const idx = order.findIndex((t) => t.id === id);
+    const newIdx = idx + direction;
+    if (idx === -1 || newIdx < 0 || newIdx >= order.length) return;
+    [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+    order.forEach((t, i) => { t.importanceRank = i; });
+    persistTasks();
+  }
 
   // ---------- rendering ----------
   function render() {
     [...orbitRoot.querySelectorAll('.orbit-ring, .orbit-pivot')].forEach((el) => el.remove());
 
-    const active = tasks.filter((t) => !t.completed);
-    sunCount.textContent = String(active.length);
-
-    const ranked = active
-      .filter((t) => t.importanceRank !== null && t.importanceRank !== undefined)
-      .sort((a, b) => a.importanceRank - b.importanceRank);
-    const unranked = active
-      .filter((t) => t.importanceRank === null || t.importanceRank === undefined)
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    const order = [...ranked, ...unranked];
+    const order = getOrderedActive();
+    sunCount.textContent = String(order.length);
 
     const count = order.length;
     const step = count > 1 ? Math.min(60, (MAX_RADIUS - MIN_RADIUS) / (count - 1)) : 0;
@@ -288,7 +305,7 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
       addPlanet(task, radius, i);
     });
 
-    renderLog();
+    renderTaskList();
   }
 
   function addOrbit(radius) {
@@ -329,20 +346,32 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     orbitRoot.appendChild(pivot);
   }
 
-  function renderLog() {
+  function renderTaskList() {
+    const active = getOrderedActive();
     const completed = tasks
       .filter((t) => t.completed)
       .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-      .slice(0, 8);
+      .slice(0, 15);
+
     logList.innerHTML = '';
-    if (completed.length === 0) {
-      logList.innerHTML = '<li class="log-empty">Completed tasks will appear here.</li>';
+    if (active.length === 0 && completed.length === 0) {
+      logList.innerHTML = '<li class="log-empty">No tasks yet.</li>';
       return;
     }
-    completed.forEach((t) => {
+
+    active.forEach((t) => {
       const li = document.createElement('li');
       li.textContent = t.title;
       li.title = t.title;
+      li.addEventListener('click', () => openDetail(t.id));
+      logList.appendChild(li);
+    });
+    completed.forEach((t) => {
+      const li = document.createElement('li');
+      li.className = 'log-completed';
+      li.textContent = t.title;
+      li.title = t.title;
+      li.addEventListener('click', () => openDetail(t.id));
       logList.appendChild(li);
     });
   }
@@ -366,10 +395,30 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     addTask(title, addNotes.value.trim());
     closeAdd();
     render();
-    showToast('Task launched into the asteroid belt.');
+    showToast('Task launched — asking AI to rank it…');
+    runRank();
   }
 
   // ---------- modals: detail ----------
+  function updateDetailMeta(task) {
+    if (task.completed) {
+      $('detail-meta').textContent = `Completed · ${fmtAge(ageDays(task.createdAt))} · done ${new Date(task.completedAt).toLocaleString()}`;
+      moveUpBtn.disabled = true;
+      moveDownBtn.disabled = true;
+      completeBtn.disabled = true;
+      completeBtn.textContent = 'Completed';
+      return;
+    }
+    completeBtn.disabled = false;
+    completeBtn.textContent = 'Mark Complete';
+    const order = getOrderedActive();
+    const idx = order.findIndex((t) => t.id === task.id);
+    const rankText = task.importanceRank != null ? `Priority #${idx + 1} of ${order.length}` : 'Not yet ranked';
+    $('detail-meta').textContent = `${rankText} · ${fmtAge(ageDays(task.createdAt))} · created ${new Date(task.createdAt).toLocaleString()}`;
+    moveUpBtn.disabled = idx <= 0;
+    moveDownBtn.disabled = idx === -1 || idx >= order.length - 1;
+  }
+
   function openDetail(id) {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
@@ -377,8 +426,7 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     $('detail-title-header').textContent = 'Task detail';
     $('detail-title').value = task.title;
     $('detail-notes').value = task.notes || '';
-    const rankText = task.importanceRank != null ? `Priority #${task.importanceRank + 1}` : 'Not yet ranked';
-    $('detail-meta').textContent = `${rankText} · ${fmtAge(ageDays(task.createdAt))} · created ${new Date(task.createdAt).toLocaleString()}`;
+    updateDetailMeta(task);
     detailModal.classList.remove('hidden');
   }
   function closeDetail() {
@@ -398,13 +446,20 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     updateTask(selectedTaskId, { completed: true });
     closeDetail();
     setTimeout(render, planetEl ? 480 : 0);
-    showToast('Task complete. Logged to mission history.');
+    showToast('Task complete. Logged to task list.');
   }
   function deleteDetail() {
     if (!selectedTaskId) return;
     deleteTask(selectedTaskId);
     closeDetail();
     render();
+  }
+  function moveDetail(direction) {
+    if (!selectedTaskId) return;
+    moveTask(selectedTaskId, direction);
+    render();
+    const task = tasks.find((t) => t.id === selectedTaskId);
+    if (task) updateDetailMeta(task);
   }
 
   // ---------- wiring ----------
@@ -416,11 +471,19 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
 
   $('detail-close').addEventListener('click', closeDetail);
   $('detail-save').addEventListener('click', saveDetail);
-  $('detail-complete').addEventListener('click', completeDetail);
+  completeBtn.addEventListener('click', completeDetail);
   $('detail-delete').addEventListener('click', deleteDetail);
   detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeDetail(); });
+  moveUpBtn.addEventListener('click', () => moveDetail(-1));
+  moveDownBtn.addEventListener('click', () => moveDetail(1));
 
-  rankBtn.addEventListener('click', runRank);
+  rankBtn.addEventListener('click', () => runRank());
+
+  logToggle.addEventListener('click', () => {
+    logList.classList.toggle('collapsed');
+    logPanel.classList.toggle('open', !logList.classList.contains('collapsed'));
+    if (!logList.classList.contains('collapsed')) renderTaskList();
+  });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeAdd(); closeDetail(); }
