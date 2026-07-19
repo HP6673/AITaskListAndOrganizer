@@ -8,57 +8,40 @@ Open PowerShell and run:
 ollama serve
 ```
 
-Open a second PowerShell window:
-
-```powershell
-cd path\to\AITaskListAndOrganizer
-npm start
-```
-
 Open in your browser:
 
 ```
-http://localhost:5757
+https://hp6673.github.io/AITaskListAndOrganizer/
 ```
+
+That's it — the page runs entirely in the browser and only needs Ollama running on your machine.
 
 ## First-time setup (Windows)
 
-1. Install Node.js: download and run the installer from https://nodejs.org (LTS version), or via winget:
-   ```powershell
-   winget install OpenJS.NodeJS.LTS
-   ```
-
-2. Install Ollama: download and run the installer from https://ollama.com/download/windows, or via winget:
+1. Install Ollama: download and run the installer from https://ollama.com/download/windows, or via winget:
    ```powershell
    winget install Ollama.Ollama
    ```
 
-3. Pull a model for Ollama to use:
+2. Pull a model for Ollama to use:
    ```powershell
    ollama pull llama3.2:3b
    ```
 
-4. Clone this repo:
+3. Allow the GitHub Pages site to talk to your local Ollama (one-time). Open PowerShell **as Administrator**:
    ```powershell
-   git clone https://github.com/HP6673/AITaskListAndOrganizer.git
-   cd AITaskListAndOrganizer
+   setx OLLAMA_ORIGINS "https://hp6673.github.io" /M
    ```
+   Close and reopen PowerShell afterward so the change takes effect.
 
-5. Install project dependencies:
-   ```powershell
-   npm install
-   ```
-
-6. Start Ollama, then start the app:
+4. Start Ollama:
    ```powershell
    ollama serve
    ```
-   In a second window:
-   ```powershell
-   npm start
+
+5. Open in your browser:
+   ```
+   https://hp6673.github.io/AITaskListAndOrganizer/
    ```
 
-7. Open in your browser:
-   ```
-   http://localhost:5757
-   ```
+**Note:** tasks are saved in your browser's local storage, not in the cloud — they won't follow you to a different browser or computer. If the page shows "Ollama unreachable," double check step 3 and that `ollama serve` is running.
