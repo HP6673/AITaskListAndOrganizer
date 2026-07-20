@@ -5,9 +5,8 @@
   const OLLAMA_URL = 'http://localhost:11434';
   const STORAGE_KEY = 'orbital-tasks-v1';
 
-  const MIN_PLANET = 16;      // px, freshly created task
-  const MAX_PLANET = 52;      // px, fully "grown" task
-  const MAX_AGE_DAYS = 5;     // days to reach MAX_PLANET size
+  const MAX_AGE_DAYS = 5;     // days to reach the fully "grown" planet size
+  const SUN_RADIUS = 42;      // px, matches #sun's 84px width in CSS
 
   const PALETTE = [
     ['#ff9d6c', '#c24b1f'], ['#6ec6ff', '#1f5fa8'], ['#a685ff', '#5c33b8'],
@@ -22,6 +21,8 @@
   let orbitingPlanets = []; // { el, radius, angleOffset, periodMs, direction }
   let minRadius = 75;
   let maxRadius = 340;
+  let minPlanet = 16;
+  let maxPlanet = 52;
 
   // ---------- dom ----------
   const $ = (id) => document.getElementById(id);
@@ -64,7 +65,7 @@
 
   function planetSize(task) {
     const frac = Math.min(1, ageDays(task.createdAt) / MAX_AGE_DAYS);
-    return Math.round(MIN_PLANET + (MAX_PLANET - MIN_PLANET) * frac);
+    return Math.round(minPlanet + (maxPlanet - minPlanet) * frac);
   }
 
   function hashOf(id) {
@@ -117,6 +118,23 @@
     const inner = Math.max(46, Math.min(75, outerRaw * 0.3)); // 46 keeps the closest orbit clear of the sun
     const outer = Math.max(inner + 30, Math.min(outerRaw, 620));
     return { inner, outer };
+  }
+
+  // Scales planet size with the same system size the orbits use, so planets
+  // grow on a roomy window and shrink on a tight one instead of staying a
+  // fixed pixel size. Also capped so the largest planet never overlaps the
+  // sun or a neighboring orbit.
+  function computePlanetSizeRange(innerR, outerR, step, count) {
+    const sizeScale = Math.max(0.5, Math.min(1.8, outerR / 340));
+    let minP = Math.max(10, Math.min(30, 16 * sizeScale));
+    let maxP = Math.max(24, Math.min(96, 52 * sizeScale));
+
+    const sunClearance = (innerR - SUN_RADIUS - 8) * 2;
+    maxP = Math.min(maxP, sunClearance);
+    if (count > 1) maxP = Math.min(maxP, step * 1.6);
+    maxP = Math.max(maxP, minP);
+
+    return { minPlanet: minP, maxPlanet: maxP };
   }
 
   // ---------- starfield ----------
@@ -322,6 +340,7 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
 
     const count = order.length;
     const step = count > 1 ? (maxRadius - minRadius) / (count - 1) : 0;
+    ({ minPlanet, maxPlanet } = computePlanetSizeRange(minRadius, maxRadius, step, count));
 
     order.forEach((task, i) => {
       const radius = count === 1 ? (minRadius + maxRadius) / 2 : minRadius + step * i;
