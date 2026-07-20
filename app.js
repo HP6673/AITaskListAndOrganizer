@@ -23,6 +23,8 @@
   let maxRadius = 340;
   let minPlanet = 16;
   let maxPlanet = 52;
+  let orbitClockOffset = 0; // subtracted from performance.now() to get orbit-time
+  let orbitFrozenAt = null; // if set, orbits are paused and frozen at this orbit-time
 
   // ---------- dom ----------
   const $ = (id) => document.getElementById(id);
@@ -382,7 +384,7 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
       direction: hash % 2 === 0 ? 1 : -1,
     };
     orbitingPlanets.push(entry);
-    positionPlanet(entry, performance.now());
+    positionPlanet(entry, orbitNow());
   }
 
   function positionPlanet(entry, now) {
@@ -392,7 +394,23 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     entry.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
   }
 
-  function tick(now) {
+  // Orbit-time clock that can be frozen and resumed without any position
+  // jump - used to stop planets moving while a task's popup is open.
+  function orbitNow() {
+    return orbitFrozenAt !== null ? orbitFrozenAt : performance.now() - orbitClockOffset;
+  }
+  function pauseOrbits() {
+    if (orbitFrozenAt !== null) return;
+    orbitFrozenAt = orbitNow();
+  }
+  function resumeOrbits() {
+    if (orbitFrozenAt === null) return;
+    orbitClockOffset = performance.now() - orbitFrozenAt;
+    orbitFrozenAt = null;
+  }
+
+  function tick() {
+    const now = orbitNow();
     for (const entry of orbitingPlanets) {
       if (entry.el.classList.contains('dying')) continue;
       positionPlanet(entry, now);
@@ -482,10 +500,12 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     $('detail-notes').value = task.notes || '';
     updateDetailMeta(task);
     detailModal.classList.remove('hidden');
+    pauseOrbits();
   }
   function closeDetail() {
     detailModal.classList.add('hidden');
     selectedTaskId = null;
+    resumeOrbits();
   }
   function saveDetail() {
     if (!selectedTaskId) return;
