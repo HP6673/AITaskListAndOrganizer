@@ -5,8 +5,6 @@
   const OLLAMA_URL = 'http://localhost:11434';
   const STORAGE_KEY = 'orbital-tasks-v1';
 
-  const MIN_RADIUS = 75;      // px, closest orbit to the sun
-  const MAX_RADIUS = 340;     // px, outer edge of the system
   const MIN_PLANET = 16;      // px, freshly created task
   const MAX_PLANET = 52;      // px, fully "grown" task
   const MAX_AGE_DAYS = 5;     // days to reach MAX_PLANET size
@@ -21,6 +19,9 @@
   let tasks = loadTasks();
   let ollamaOk = false;
   let selectedTaskId = null;
+  let orbitingPlanets = []; // { el, radius, angleOffset, periodMs, direction }
+  let minRadius = 75;
+  let maxRadius = 340;
 
   // ---------- dom ----------
   const $ = (id) => document.getElementById(id);
@@ -66,10 +67,14 @@
     return Math.round(MIN_PLANET + (MAX_PLANET - MIN_PLANET) * frac);
   }
 
-  function colorFor(id) {
+  function hashOf(id) {
     let hash = 0;
     for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-    return PALETTE[hash % PALETTE.length];
+    return hash;
+  }
+
+  function colorFor(id) {
+    return PALETTE[hashOf(id) % PALETTE.length];
   }
 
   function showToast(msg, ms = 3200) {
@@ -95,6 +100,23 @@
       .filter((t) => t.importanceRank === null || t.importanceRank === undefined)
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     return [...ranked, ...unranked];
+  }
+
+  // ---------- layout ----------
+  // Derives both radii from the actual viewport so the whole system - every
+  // orbit ring included - always fits without clipping. The inner radius
+  // scales down with the outer one on small screens instead of using a fixed
+  // floor, which would otherwise push the outer ring past the safe area.
+  function computeRadii() {
+    const topInset = 100;    // topbar + legend
+    const bottomInset = 110; // add button / task list panel
+    const sideInset = 50;
+    const availW = window.innerWidth - sideInset * 2;
+    const availH = window.innerHeight - topInset - bottomInset;
+    const outerRaw = Math.max(60, Math.min(availW, availH) / 2 - 40); // room for planet size + tooltip
+    const inner = Math.max(46, Math.min(75, outerRaw * 0.3)); // 46 keeps the closest orbit clear of the sun
+    const outer = Math.max(inner + 30, Math.min(outerRaw, 620));
+    return { inner, outer };
   }
 
   // ---------- starfield ----------
@@ -291,18 +313,20 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
 
   // ---------- rendering ----------
   function render() {
-    [...orbitRoot.querySelectorAll('.orbit-ring, .orbit-pivot')].forEach((el) => el.remove());
+    ({ inner: minRadius, outer: maxRadius } = computeRadii());
+    [...orbitRoot.querySelectorAll('.orbit-ring, .planet')].forEach((el) => el.remove());
+    orbitingPlanets = [];
 
     const order = getOrderedActive();
     sunCount.textContent = String(order.length);
 
     const count = order.length;
-    const step = count > 1 ? Math.min(60, (MAX_RADIUS - MIN_RADIUS) / (count - 1)) : 0;
+    const step = count > 1 ? (maxRadius - minRadius) / (count - 1) : 0;
 
     order.forEach((task, i) => {
-      const radius = count === 1 ? MIN_RADIUS + 40 : MIN_RADIUS + step * i;
+      const radius = count === 1 ? (minRadius + maxRadius) / 2 : minRadius + step * i;
       addOrbit(radius);
-      addPlanet(task, radius, i);
+      addPlanet(task, radius);
     });
 
     renderTaskList();
@@ -316,34 +340,45 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     orbitRoot.appendChild(ring);
   }
 
-  function addPlanet(task, radius, index) {
-    const pivot = document.createElement('div');
-    pivot.className = 'orbit-pivot';
-    const duration = 14 + radius * 0.12;
-    pivot.style.animationDuration = `${duration}s`;
-    pivot.style.animationDelay = `-${(index * 997) % Math.round(duration * 100) / 100}s`;
-    if (index % 2 === 1) pivot.style.animationDirection = 'reverse';
-
-    const wrap = document.createElement('div');
-    wrap.className = 'planet-wrap';
-    wrap.style.left = `${radius}px`;
-
+  function addPlanet(task, radius) {
     const size = planetSize(task);
     const [c1, c2] = colorFor(task.id);
+    const hash = hashOf(task.id);
+
     const planet = document.createElement('div');
     planet.className = 'planet' + (task.importanceRank == null ? ' unranked' : '');
     planet.style.width = `${size}px`;
     planet.style.height = `${size}px`;
     planet.style.background = `radial-gradient(circle at 32% 28%, ${c1}, ${c2})`;
-    planet.style.animationDuration = `${duration}s`;
-    if (index % 2 === 1) planet.style.animationDirection = 'reverse';
     planet.dataset.id = task.id;
     planet.dataset.title = `${task.title} — ${fmtAge(ageDays(task.createdAt))}${task.importanceRank != null ? ` — priority #${task.importanceRank + 1}` : ' — unranked'}`;
     planet.addEventListener('click', () => openDetail(task.id));
+    orbitRoot.appendChild(planet);
 
-    wrap.appendChild(planet);
-    pivot.appendChild(wrap);
-    orbitRoot.appendChild(pivot);
+    const entry = {
+      el: planet,
+      radius,
+      angleOffset: (hash % 360) * (Math.PI / 180),
+      periodMs: (14 + radius * 0.12) * 1000, // closer orbits move faster
+      direction: hash % 2 === 0 ? 1 : -1,
+    };
+    orbitingPlanets.push(entry);
+    positionPlanet(entry, performance.now());
+  }
+
+  function positionPlanet(entry, now) {
+    const angle = entry.angleOffset + entry.direction * (now / entry.periodMs) * Math.PI * 2;
+    const x = Math.cos(angle) * entry.radius;
+    const y = Math.sin(angle) * entry.radius;
+    entry.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+  }
+
+  function tick(now) {
+    for (const entry of orbitingPlanets) {
+      if (entry.el.classList.contains('dying')) continue;
+      positionPlanet(entry, now);
+    }
+    requestAnimationFrame(tick);
   }
 
   function renderTaskList() {
@@ -489,10 +524,17 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     if (e.key === 'Escape') { closeAdd(); closeDetail(); }
   });
 
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 150);
+  });
+
   // ---------- init ----------
   buildStarfield();
   refreshOllamaStatus();
   render();
+  requestAnimationFrame(tick);
   setInterval(render, 30000);
   setInterval(refreshOllamaStatus, 20000);
 })();

@@ -120,28 +120,10 @@ html, body {
   pointer-events: none;
 }
 
-.orbit-pivot {
-  position: absolute;
-  top: 0; left: 0;
-  width: 0; height: 0;
-  animation: spin linear infinite;
-}
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.planet-wrap {
+.planet {
   position: absolute;
   top: 50%;
-  transform: translate(0, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.planet {
-  position: relative;
+  left: 50%;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -151,29 +133,23 @@ html, body {
   font-weight: 700;
   font-size: 12px;
   box-shadow: inset -4px -4px 10px rgba(0,0,0,0.35), 0 0 12px rgba(0,0,0,0.4);
-  transition: transform 0.15s ease;
-  animation: counter-spin linear infinite;
-}
-@keyframes counter-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(-360deg); }
 }
 .planet:hover {
-  transform: scale(1.15);
+  filter: brightness(1.12);
 }
 .planet::after {
   content: attr(data-title);
   position: absolute;
   top: 100%;
-  margin-top: 6px;
+  margin-top: 8px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(10,12,22,0.95);
   border: 1px solid var(--panel-border);
   color: var(--text);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 14px;
   font-weight: 400;
   white-space: nowrap;
   opacity: 0;
