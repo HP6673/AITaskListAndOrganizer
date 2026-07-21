@@ -374,6 +374,8 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     planet.dataset.id = task.id;
     planet.dataset.title = `${task.title} — ${fmtAge(ageDays(task.createdAt))}${task.importanceRank != null ? ` — priority #${task.importanceRank + 1}` : ' — unranked'}`;
     planet.addEventListener('click', () => openDetail(task.id));
+    planet.addEventListener('mouseenter', () => pauseOrbits('hover'));
+    planet.addEventListener('mouseleave', () => resumeOrbits('hover'));
     orbitRoot.appendChild(planet);
 
     const entry = {
@@ -395,15 +397,22 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
   }
 
   // Orbit-time clock that can be frozen and resumed without any position
-  // jump - used to stop planets moving while a task's popup is open.
+  // jump - used to stop planets moving while a task's popup (hover tooltip
+  // or the detail panel) is open. Reason-counted so hovering a planet and
+  // then clicking it to open its detail panel doesn't let one release
+  // resume the orbit while the other still wants it paused.
+  const pauseReasons = new Set();
   function orbitNow() {
     return orbitFrozenAt !== null ? orbitFrozenAt : performance.now() - orbitClockOffset;
   }
-  function pauseOrbits() {
+  function pauseOrbits(reason) {
+    pauseReasons.add(reason);
     if (orbitFrozenAt !== null) return;
     orbitFrozenAt = orbitNow();
   }
-  function resumeOrbits() {
+  function resumeOrbits(reason) {
+    pauseReasons.delete(reason);
+    if (pauseReasons.size > 0) return;
     if (orbitFrozenAt === null) return;
     orbitClockOffset = performance.now() - orbitFrozenAt;
     orbitFrozenAt = null;
@@ -500,12 +509,15 @@ Respond with ONLY a JSON object of the exact form {"ranking": ["id1","id2",...]}
     $('detail-notes').value = task.notes || '';
     updateDetailMeta(task);
     detailModal.classList.remove('hidden');
-    pauseOrbits();
+    // Opening the modal implies the pointer was just over this planet, but the
+    // modal now covers it, so it may never get a mouseleave to clear 'hover'.
+    resumeOrbits('hover');
+    pauseOrbits('modal');
   }
   function closeDetail() {
     detailModal.classList.add('hidden');
     selectedTaskId = null;
-    resumeOrbits();
+    resumeOrbits('modal');
   }
   function saveDetail() {
     if (!selectedTaskId) return;
