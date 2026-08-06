@@ -1,11 +1,11 @@
 # How to Run:
 
-Already Ran:
+### Already Ran:
 1. Open powershell or terminal
 2. Run ollama serve
 3. Open site - https://hp6673.github.io/AITaskListAndOrganizer/
 
-## Initial Setup - Windows:
+### Initial Setup - Windows:
 1. Open powershell and run following commands:
 
    winget install Ollama.Ollama
@@ -15,7 +15,7 @@ Already Ran:
    
 3. Open Site - https://hp6673.github.io/AITaskListAndOrganizer/
 
-## Initial Setup - Mac:
+### Initial Setup - Mac:
 1. Open terminal and run following commands:
 
    brew install ollama
