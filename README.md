@@ -2,7 +2,7 @@
 
 ### Already Ran:
 1. Open powershell or terminal
-2. Run ollama serve
+2. Run <pre>ollama serve</pre>
 3. Open site - https://hp6673.github.io/AITaskListAndOrganizer/
 
 ### Initial Setup - Windows:
@@ -27,5 +27,5 @@
 </pre>
 
 2. Relaunch Ollama
-3. Run ollama serve
+3. Run <pre>ollama serve</pre>
 4. Open Site - https://hp6673.github.io/AITaskListAndOrganizer/
