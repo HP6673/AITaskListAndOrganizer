@@ -5,6 +5,9 @@
 2. Run <pre>ollama serve</pre>
 3. Open site - https://hp6673.github.io/AITaskListAndOrganizer/
 
+
+
+
 ### Initial Setup - Windows:
 1. Open powershell and run following commands:
 
@@ -16,6 +19,9 @@
 </pre>
 
 3. Open Site - https://hp6673.github.io/AITaskListAndOrganizer/
+
+
+
 
 ### Initial Setup - Mac:
 1. Open terminal and run following commands:
